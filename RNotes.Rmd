@@ -1,0 +1,55 @@
+---
+title: "R notes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Selections
+test <- sqldf("select * from t1 where t1.n > 400 limit 1")  
+test <- sqldf("select * from t1 where t1.ngram = 'i' ")
+test <- sqldf("select * from t2 where t2.ngram like 'i%' ")
+    The percent sign % wildcard matches any sequence of zero or more characters. http://www.sqlitetutorial.net/sqlite-like/
+    The underscore _ wildcard matches any single character.
+test <- sqldf("select * from t2 where t2.ngram like 'i %' ")  #find i, space, wildcards.
+> head(test)
+    ngram    n
+1  i love 1499
+2  i have 1297
+
+test <- t2[ngram=="i am"]
+#Sizes of objects
+  sort(sapply(ls(), function(x) format(object.size(get(x)), unit = 'auto')))
+  format(object.size(corpus), units="auto")
+  To get memory usage for your namespace, by object type, use memory.profile()
+#Reversing ngrams 
+  See handling strings in r by sanchez
+  
+#Timing R
+  t1 <- Sys.time()
+  print(paste0("string: ", difftime(Sys.time(), t1, units = 'sec')))
+  system.time(expression)
+  
+#Length of a vector vs nrow/ncol
+ lengths(ngram1)
+   ngram      n 
+  904589 904589 
+  nrow/ncol(object)
+  
+#Regex 
+? optional previous character: colou?r matches color, colour
+oo*h 0 or more of prev char
+00+  1 or more of prev char
+. single char
+
+#Converting to character vectors
+* convert the column to a character not the entire table eg profdf$profanity, not profdf
+str(profdf)
+Classes ‘tbl_df’, ‘tbl’ and 'data.frame':	3099 obs. of  1 variable:
+ $ profanity: chr  "damn" "dyke" "fuck" "shit" ...
+
+p <- as.character(profdf$profanity) ; 
+[1] "damn"          "dyke"          "fuck"          "shit"          "2 girls 1 cup" "2g1c"         
+p2 <- as.character(profdf); head(p2)
+[1] "c(\"damn\", \"dyke\", \"fuck\", \"shit\", \"2 girls 1 cup\", \"2g1c\", \"4r5e\", \"5h1t\",etc

@@ -1,0 +1,341 @@
+---
+title: "DS10 Captone week 2 milestone report"
+output:
+  html_document: default
+  html_notebook: default
+  number_sections: yes  
+  pdf_document: null
+  toc: yes
+---
+```{r Setup, message=FALSE, warning=FALSE, echo=FALSE}
+library(rmarkdown)
+library(knitr)
+options("digits"=5)
+library(tidyverse)
+library(tidytext)
+library(jsonlite)
+
+# Data locations
+profanityURL <- "https://raw.githubusercontent.com/zacanger/profane-words/master/words.json"
+rawdataURL <- "http://download1484.mediafire.com/xxu68wwooubg/eyyz5474barw6rl/english_us_corpus_2012_05_22.rar"
+rawdataFile  <- "Coursera-SwiftKey.zip"
+rawdataLoc   <- "data_raw"
+cleandataLoc <- "data_clean"
+
+blogFile <- paste0("./", rawdataLoc, "/", "en_US.blogs.txt")
+newsFile <- paste0("./", rawdataLoc, "/", "en_US.news.txt")
+twitFile <- paste0("./", rawdataLoc, "/", "en_US.twitter.txt")
+profanityJSON <- paste0("./", rawdataLoc, "/", "profanity.json")
+profanityFile <- paste0("./", cleandataLoc, "/", "profanity.txt")
+
+# Helper functions
+downloadFile <- function( URL, dataFile ) {
+  if (!file.exists(dataFile)) {
+    download.file(URL, destfile=dataFile)
+  }
+}
+
+readData <- function( filename, lines) {
+  # f <- file(filename)
+  #datalines <- readLines(f, n=lines)  #was readLines
+  #datalines <- read_file(f)
+  datalines <- read_lines(filename, n_max=lines)
+  # on.exit(close(f))                           #close connection if read fail
+  return(datalines)
+}
+
+```
+# Summary
+This report describes basic properties of the Data Science Capstone corpus data. Only the English text is described.
+
+This .RMD is available at: https://www.dropbox.com/s/05l0mq0xpr5rrb5/DS10_Capstone_week_2.Rmd?dl=0 
+
+# Data processings
+
+Initially, download the data/assume the data is located in `r rawdataLoc`. The original source, `r rawdataURL` requires manual downloading as the original corpus location is unavailable. 
+
+
+To filter out profanity, use the file from `r profanityURL`; as this is in JSON format, remove the JSON structure and all * characters (used for stemming).
+
+```{r Profanity, message=FALSE, warning=FALSE, echo=FALSE}
+# Get some profanity!
+downloadFile( profanityURL, profanityJSON)
+# It's in JSON format, so strip out all the tags
+profanity <- fromJSON(profanityJSON)
+# remove asterisk from profanity (we are not yet doing stemming. \ escapes, \* resolves to asterisk)
+profanity <- gsub("\\*", "", profanity, ignore.case=TRUE, perl=TRUE)
+# Save text-format profanity
+write(profanity, file=profanityFile)
+# 
+profdf <- data_frame(profanity)
+```
+  
+```{r readlines, message=FALSE, warning=FALSE, echo=FALSE}
+nLines = -1   #n=-1 reads everything
+```
+# Read data
+For testing purposes, the no. of lines read from each file can be changed. "-1" reads everything. 
+The current setting is `r nLines`.
+
+The next steps are (for each file)
+* read the file and convert the data to a data frame
+* filter out profanity using tidytext::anti_join()
+* tokenise the files using tidytext::unnest_tokens()
+
+```{r readfiles, message=FALSE, warning=FALSE, echo=FALSE}
+#read Twitter text
+# system.time({     #About 45 seconds on Erik
+  
+twitData <- readData(twitFile, nLines)
+twitdf   <- data_frame(text=twitData)   #must have text= parameter, else unnest_tokens or tokenize doesn't work
+
+#read blog text
+blogData <- readData(blogFile, nLines)  
+blogdf   <- data_frame(text=blogData)
+#read News text
+newsData <- readData(newsFile, nLines)  
+newsdf   <- data_frame(text=newsData)
+
+#Filter profanity
+# column names must be the same for joins
+names(profdf) <- "text" 
+
+twitdf <- twitdf %>%
+  anti_join(profdf)
+
+blogdf <- blogdf %>%
+  anti_join(profdf)
+
+newsdf <- newsdf %>%
+  anti_join(profdf)
+
+#Tokenise
+tidy_twit <- twitdf %>%
+  unnest_tokens(word,text)
+tidy_blog <- blogdf %>%
+  unnest_tokens(word, text)
+tidy_news <- newsdf %>%
+  unnest_tokens(word, text)
+#}) #end system.time
+```
+
+
+# Summary statistics
+Now compute some summary statistics for the input data.
+
+```{r SummaryStats, message=FALSE, warning=FALSE, echo=FALSE}
+# #TODO refactor into a single function
+# TWITTER
+twitCount <- tidy_twit %>%
+  count(word, sort=TRUE)
+twitUniqueTokens <- length(twitCount$word)
+twitLines <- length(twitData)
+
+# 90% coverage by occurrence => sum of occurrences = 90% of observed data
+twit90 <- 0.9 * length(tidy_twit$word)
+# find the index in twitcount where the cumulative sum of occurences ~= 90%
+cumsumocc <- cumsum(twitCount$n)    #get all cumulative sums
+twit90coverage <- max(which(cumsumocc <= twit90))     #get the largest index where the cumulative sum is <= the 90% figure.
+#
+twit50 <- 0.5 * length(tidy_twit$word)
+# find the index in twitcount where the cumulative sum of occurences ~= 90%
+cumsumocc <- cumsum(twitCount$n)    #get all cumulative sums
+twit50coverage <- max(which(cumsumocc <= twit50))     #get the largest index where the cumulative sum is <= the 90% figure.
+
+twitCount <- tidy_twit %>%
+  count(word, sort=TRUE)
+twitUniqueTokens <- length(twitCount$word)
+twitLines <- length(twitData)
+
+# #TODO refactor into a single function
+# NEWS
+newsCount <- tidy_news %>%
+  count(word, sort=TRUE)
+newsUniqueTokens <- length(newsCount$word)
+newsLines <- length(newsData)
+# 90% coverage by occurrence => sum of occurrences = 90% of observed data
+news90 <- 0.9 * length(tidy_news$word)
+# find the index in twitcount where the cumulative sum of occurences ~= 90%
+cumsumocc <- cumsum(newsCount$n)    #get all cumulative sums
+news90coverage <- max(which(cumsumocc <= news90))     #get the largest index where the cumulative sum is <= the 90% figure.
+#
+news50 <- 0.5 * length(tidy_news$word)
+# find the index in twitcount where the cumulative sum of occurences ~= 90%
+cumsumocc <- cumsum(newsCount$n)    #get all cumulative sums
+news50coverage <- max(which(cumsumocc <= news50))     #get the largest index where the cumulative sum is <= the 90% figure.
+
+
+
+# #TODO refactor into a single function
+# BLOG
+blogCount <- tidy_blog %>%
+  count(word, sort=TRUE)
+blogUniqueTokens <- length(blogCount$word)
+blogLines <- length(blogData)
+
+# 90% coverage by occurrence => sum of occurrences = 90% of observed data
+blog90 <- 0.9 * length(tidy_blog$word)
+# find the index in twitcount where the cumulative sum of occurences ~= 90%
+cumsumocc <- cumsum(blogCount$n)    #get all cumulative sums
+blog90coverage <- max(which(cumsumocc <= blog90))     #get the largest index where the cumulative sum is <= the 90% figure.
+#
+blog50 <- 0.5 * length(tidy_blog$word)
+# find the index in twitcount where the cumulative sum of occurences ~= 90%
+cumsumocc <- cumsum(blogCount$n)    #get all cumulative sums
+blog50coverage <- max(which(cumsumocc <= blog50))     #get the largest index where the cumulative sum is <= the 90% figure.
+
+
+#Tabulate basic data
+dt <-data.frame(file="",length="",uniqueTokens="",coverage50="", coverage90="", stringsAsFactors=FALSE)
+dt[1,] <- rbind("en_US.twitter.txt", twitLines, twitUniqueTokens, twit50coverage, twit90coverage)
+dt[2,] <- rbind("en_US.news.txt",    newsLines, newsUniqueTokens, news50coverage, news90coverage)
+dt[3,] <- rbind("en_US.blog.txt",    blogLines, blogUniqueTokens, blog50coverage, blog90coverage)
+names(dt) <- c("File name", "Lines", "Unique Tokens", "Tokens covering 50%", "Tokens covering 90%")           
+```
+
+Filename  the specific file examined
+Length    no. of lines in the file 
+Unique Tokens thUnique Tokens as counted by TidyText::unnest_tokens()
+Tokens covering 50%/90% no. of tokens required to account for 50%/90% of total number of occurrences. 
+
+```{r SummaryTable, message=FALSE, warning=FALSE, echo=FALSE}
+#kable
+kable(dt, caption="Basic properties of corpus data")
+
+```
+
+#N-grams
+
+Now find the no. of 2-grams and 3-grams in each file.
+
+```{r Findngrams, message=FALSE, warning=FALSE, echo=FALSE, cache=TRUE}
+twitngram2 <- twitdf %>%
+  unnest_tokens(ngram,text, token="ngrams", n= 2) %>%
+  count(ngram, sort=TRUE) 
+
+twitngram3 <- twitdf %>%
+  unnest_tokens(ngram,text, token="ngrams", n= 3) %>%
+  count(ngram, sort=TRUE)
+
+blogngram2 <- blogdf %>%
+  unnest_tokens(ngram,text, token="ngrams", n= 2) %>%
+  count(ngram, sort=TRUE) 
+
+blogngram3 <- blogdf %>%
+  unnest_tokens(ngram,text, token="ngrams", n= 3) %>%
+  count(ngram, sort=TRUE)
+
+newsngram2 <- newsdf %>%
+  unnest_tokens(ngram,text, token="ngrams", n= 2) %>%
+  count(ngram, sort=TRUE) 
+
+newsngram3 <- twitdf %>%
+  unnest_tokens(ngram,text, token="ngrams", n= 3) %>%
+  count(ngram, sort=TRUE)
+
+ctwitngram2 <- length(twitngram2$n)
+ctwitngram3 <- length(twitngram3$n)
+cblogngram2 <- length(blogngram2$n)
+cblogngram3 <- length(blogngram3$n)
+cnewsngram2 <- length(newsngram2$n)
+cnewsngram3 <- length(newsngram3$n)
+
+dt <-data.frame(file="",length="",uniqueTokens="",coverage50="", coverage90="", stringsAsFactors=FALSE)
+dt[1,] <- rbind("en_US.twitter.txt", twitLines, twitUniqueTokens, twit50coverage, twit90coverage)
+dt[2,] <- rbind("en_US.news.txt",    newsLines, newsUniqueTokens, news50coverage, news90coverage)
+dt[3,] <- rbind("en_US.blog.txt",    blogLines, blogUniqueTokens, blog50coverage, blog90coverage)
+names(dt) <- c("File name", "Lines", "Unique Tokens", "Tokens covering 50%", "Tokens covering 90%")           
+
+cngrams <- data.frame(c(ctwitngram2, cnewsngram2, cblogngram2),
+                      c(ctwitngram3, cnewsngram3, cblogngram3))
+names(cngrams) <- c("2-grams", "3-grams")
+dt <- cbind(dt, cngrams)
+``` 
+
+Updating the table with a count of unique 2- and 3-grams yields:
+
+```{r ngramtable, message=FALSE, warning=FALSE, echo=FALSE}
+kable(dt, caption="Properties of corpus data + unique n-grams")
+# set histogram params for next section
+cthreshold <- 1000
+bin        <- 1000
+```
+
+# Distribution of n-grams
+The following plots show the distribution of n-grams. The counts assume a minimum of `r cthreshold` occurrences, and the histogram bin width is `r bin`.
+
+Each graph indicates there are a high number of 2- and 3-grams that occur very frequently, and a "long-tail" of 2- and 3-grams. The predictive model will probably then be accurate for the top 100 2- and 3-grams, and will need some additional analysis and development to handle the n-grams that appear less frequently.
+
+```{r ngramplots, message=FALSE, warning=FALSE, echo=FALSE, fig.width=3, fig.height=2}
+
+#plots
+ggtwit2 <- twitngram2 %>%
+   filter(n> cthreshold) %>%
+    mutate(ng2=reorder(ngram,n)) %>%
+  ggplot(aes(x=n)) +
+  geom_histogram(binwidth=bin) +
+  xlab("Occurrences") +
+  ggtitle("2-grams in Twitter data") +
+  coord_flip()
+print(ggtwit2)
+
+ggtwit3 <- twitngram3 %>%
+  filter(n> cthreshold) %>%
+  mutate(ng2=reorder(ngram,n)) %>%
+  ggplot(aes(x=n)) +
+  geom_histogram(binwidth=bin) +
+  xlab("Occurrences") +
+  ggtitle("3-grams in Twitter data") +
+  coord_flip()
+print(ggtwit3)
+
+ggblog2 <- blogngram2 %>%
+  filter(n> cthreshold) %>%
+  mutate(ng2=reorder(ngram,n)) %>%
+  ggplot(aes(x=n)) +
+  geom_histogram(binwidth=bin) +
+  xlab("Occurrences") +
+  ggtitle("2-grams in Blog data") +
+  coord_flip()
+print(ggblog2)
+
+ggblog3 <- blogngram3 %>%
+  filter(n> cthreshold) %>%
+  mutate(ng2=reorder(ngram,n)) %>%
+  ggplot(aes(x=n)) +
+  geom_histogram(binwidth=bin) +
+  xlab("Occurrences") +
+  ggtitle("3-grams in Blog data") +
+  coord_flip()
+print(ggblog3)
+
+
+ggnews2 <- newsngram2 %>%
+  filter(n> cthreshold) %>%
+  mutate(ng2=reorder(ngram,n)) %>%
+  ggplot(aes(x=n)) +
+  geom_histogram(binwidth=bin) +
+  xlab("Occurrences") +
+  ggtitle("2-grams in News data") +
+  coord_flip()
+print(ggnews2)
+
+ggnews3 <- newsngram3 %>%
+  filter(n> cthreshold) %>%
+  mutate(ng2=reorder(ngram,n)) %>%
+  ggplot(aes(x=n)) +
+  geom_histogram(binwidth=bin) +
+  xlab("Occurrences") +
+  ggtitle("3-grams in News data") +
+  coord_flip()
+print(ggnews3)
+
+```
+
+# Versioning
+The following section shows the R and package versions.
+
+```{r sessionInfo, message=FALSE, warning=FALSE, echo=FALSE}
+sessionInfo()
+```
+
