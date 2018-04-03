@@ -144,3 +144,7 @@ x3[ , w2 := str_split(ngram, " ")[[1]][2] ]
 > object.size(ngram2)
 92735216 bytes
 > str(ngram2)
+
+# Shiny
+Errors:
+object of type 'closure' is not subsettable: usually means you've referenced an object as name rather than name()

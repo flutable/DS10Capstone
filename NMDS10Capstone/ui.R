@@ -34,7 +34,7 @@ shinyUI(fluidPage(
   # Application title
   titlePanel("DS10 Capstone predictive text"),
   
-  # Sidebar with a slider input for number of bins 
+  #  
   fluidRow(
     column(9,
       textInput("usertext", 
@@ -56,14 +56,14 @@ shinyUI(fluidPage(
            
            h5(strong("2-gram: ", style="display:inline"), textOutput("n2")   ),
            h5(strong("2-pred: ", style="display:inline"), textOutput("p3_2") ),
-           h6(strong("p3_2 len: ", style="display:inline"), textOutput("p3_2len") ),           
+           # h6(strong("p3_2 len: ", style="display:inline"), textOutput("p3_2len") ),           
            
            h5(strong("3-gram: ", style="display:inline"), textOutput("n3")   ),
            h5(strong("3-pred: ", style="display:inline"), textOutput("p4_3") ),
            
            h5(strong("4-gram: ", style="display:inline"), textOutput("n4")   ),
            h5(strong("4-pred: ", style="display:inline"), textOutput("p5_4") ),
-           h6(strong("p5_4 len: ", style="display:inline"), textOutput("p5_4len") ),
+          #h6(strong("p5_4 len: ", style="display:inline"), textOutput("p5_4len") ),
               
            h5(strong("5-gram: ", style="display:inline"), textOutput("n5")   ),
            h5(strong("5-pred: ", style="display:inline"), textOutput("p6_5") )
