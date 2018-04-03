@@ -464,46 +464,7 @@ if (!exists("ngram5")) {
     n4 <- word(n4,1)
     n5 <- word(n5,1)
     
-    # sqldf lookups ----    
-    # pre-prepare the SQLdf strings.
-    # Assumptions
-    # 1. Only want the first element of the subset, hence limit 1
-    # 2. a space is the delimiter betweentokens, so the sqldf LIKE keyword has the parameter ngram followed by a space
-    # 3. ngrams have already been pre-sorted so returned string has the highest probability/log pr already.
-    n1_pred <- paste0("select * from ngram2 where ngram like '", n1," %' limit 1")   #n1gram prediction
-    n2_pred <- paste0("select * from ngram3 where ngram like '", n2," %' limit 1")   
-    n3_pred <- paste0("select * from ngram4 where ngram like '", n3," %' limit 1")   
-    n4_pred <- paste0("select * from ngram5 where ngram like '", n4," %' limit 1")   
-    #n5_pred <- paste0("select * from ngram5 where ngram like '", n5," %' limit 1")      
-    # timeSqlLookup <- Sys.time()
-    # 
-    # #Names p2_1g 'predict 2-gram from 1 gram', p2_1 is the
-    # p2_1g   <- sqldf( n1_pred )[[2]]   #search for 2gram, [[2]] gets gram, not the count. character(empty) if not found
-    # p2_1    <- GetNgramlastword(p2_1g, 2)
-    # print(paste0("p2_1g: ", p2_1g, ": ", p2_1))
-    # 
-    # p3_2g   <- sqldf( n2_pred )[[2]]
-    # p3_2    <- GetNgramlastword(p3_2g, 3)
-    # p3_2len <- length(p3_2)
-    # print(paste0("p3_2g: ", p3_2g, ": ", p3_2 ))
-    # 
-    # p4_3g   <- sqldf( n3_pred )[[2]]
-    # p4_3    <- GetNgramlastword(p4_3g, 4)
-    # print(paste0("p4_3g: ", p4_3g, ": ", p4_3))
-    # 
-    # p5_4g   <- sqldf( n4_pred )[[2]]
-    # p5_4    <- GetNgramlastword(p5_4g, 5)
-    # p5_4len <- length( p5_4g )
-    # print(paste0("p5_4g: ", p5_4g, ": ", p5_4))
-    # 
-    # # p6_5g   <- sqldf( n5_pred )[[2]]
-    # # p6_5    <-  GetNgramlastword(p6_5g,6)
-    # # p6_5len <- length( p6_5g )
-    # # print(paste0("p6_5g: ", p6_5g, ": ", p6_5))
-    # 
-    # print(paste0("SQL lookup time: ", difftime(Sys.time(), timeSqlLookup, units = 'sec'))) 
-    #
-    timeDtLookup <- Sys.time()
+     timeDtLookup <- Sys.time()
     
     #Data.table lookups ----
     #Have we seen this ngram before? Lookup ngram and extract it.
@@ -687,6 +648,47 @@ if (!exists("ngram5")) {
 #     }
 #   }
 # Archived stuff ----
+ 
+    # sqldf lookups ----    
+    # pre-prepare the SQLdf strings.
+    # Assumptions
+    # 1. Only want the first element of the subset, hence limit 1
+    # 2. a space is the delimiter betweentokens, so the sqldf LIKE keyword has the parameter ngram followed by a space
+    # 3. ngrams have already been pre-sorted so returned string has the highest probability/log pr already.
+    n1_pred <- paste0("select * from ngram2 where ngram like '", n1," %' limit 1")   #n1gram prediction
+    n2_pred <- paste0("select * from ngram3 where ngram like '", n2," %' limit 1")   
+    n3_pred <- paste0("select * from ngram4 where ngram like '", n3," %' limit 1")   
+    n4_pred <- paste0("select * from ngram5 where ngram like '", n4," %' limit 1")   
+    #n5_pred <- paste0("select * from ngram5 where ngram like '", n5," %' limit 1")      
+    # timeSqlLookup <- Sys.time()
+    # 
+    # #Names p2_1g 'predict 2-gram from 1 gram', p2_1 is the
+    # p2_1g   <- sqldf( n1_pred )[[2]]   #search for 2gram, [[2]] gets gram, not the count. character(empty) if not found
+    # p2_1    <- GetNgramlastword(p2_1g, 2)
+    # print(paste0("p2_1g: ", p2_1g, ": ", p2_1))
+    # 
+    # p3_2g   <- sqldf( n2_pred )[[2]]
+    # p3_2    <- GetNgramlastword(p3_2g, 3)
+    # p3_2len <- length(p3_2)
+    # print(paste0("p3_2g: ", p3_2g, ": ", p3_2 ))
+    # 
+    # p4_3g   <- sqldf( n3_pred )[[2]]
+    # p4_3    <- GetNgramlastword(p4_3g, 4)
+    # print(paste0("p4_3g: ", p4_3g, ": ", p4_3))
+    # 
+    # p5_4g   <- sqldf( n4_pred )[[2]]
+    # p5_4    <- GetNgramlastword(p5_4g, 5)
+    # p5_4len <- length( p5_4g )
+    # print(paste0("p5_4g: ", p5_4g, ": ", p5_4))
+    # 
+    # # p6_5g   <- sqldf( n5_pred )[[2]]
+    # # p6_5    <-  GetNgramlastword(p6_5g,6)
+    # # p6_5len <- length( p6_5g )
+    # # print(paste0("p6_5g: ", p6_5g, ": ", p6_5))
+    # 
+    # print(paste0("SQL lookup time: ", difftime(Sys.time(), timeSqlLookup, units = 'sec'))) 
+    #
+
  ##### Don't mix tidyverse & data.table ----
   # mutate() changes things from data.table back to data.frame, you get all sorts of errors.
     # ngram1 <- setDT(ngram1) %>% 
