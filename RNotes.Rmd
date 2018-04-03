@@ -53,3 +53,94 @@ p <- as.character(profdf$profanity) ;
 [1] "damn"          "dyke"          "fuck"          "shit"          "2 girls 1 cup" "2g1c"         
 p2 <- as.character(profdf); head(p2)
 [1] "c(\"damn\", \"dyke\", \"fuck\", \"shit\", \"2 girls 1 cup\", \"2g1c\", \"4r5e\", \"5h1t\",etc
+
+# Comparing sqldf
+test <- sqldf("select * from t1 where t1.n > 400 limit 1")  
+test <- sqldf("select * from t1 where t1.ngram = 'i' ")
+test <- sqldf("select * from t2 where t2.ngram like 'i%' ")
+    The percent sign % wildcard matches any sequence of zero or more characters. http://www.sqlitetutorial.net/sqlite-like/
+    The underscore _ wildcard matches any single character.
+test <- sqldf("select * from t2 where t2.ngram like 'i %' ")  #find i, space, wildcards.
+> head(test)
+    ngram    n
+1  i love 1499
+2  i have 1297
+
+test <- t2[ngram=="i am"]
+#get current data sizes
+  sort(sapply(ls(), function(x) format(object.size(get(x)), unit = 'auto')))
+  format(object.size(corpus), units="auto")
+
+# Reversing ngrams handling strings in r by sanchez
+# Timing
+  t1 <- Sys.time()
+  print(paste0("string: ", difftime(Sys.time(), t1, units = 'sec')))
+  system.time(expression)
+  
+# Length
+
+ lengths(ngram1)
+  ngram      n 
+  904589 904589 
+  nrow/ncol(object)
+  use nchar for the length of elements inside a character vector
+  
+#Regex
+? optional previous character: colou?r matches color, colour
+oo*h 0 or more of prev char
+00+  1 or more of prev char
+. single char
+
+
+system.time({
+ sqldf("select ngram from ngram3 where ngram like 'Cat is %' limit 10")
+})
+# Using sqldf lookup vs datatable like() lookup
+> pred("cat is")
+[1] "p2_1g: is a: a"
+[1] "p3_2g: cat is in: in"
+[1] "p4_3g: : NoNgram"
+[1] "p5_4g: : NoNgram"
+[1] "SQL lookup time: 15.4968512058258"
+[1] "p2_1g: is a: a"
+[1] "p3_2g: cat is in: in"
+[1] "p4_3g: NA: NA"
+[1] "p5_4g: NA: NA"
+[1] "DataTable lookup time: 3.44549703598022"
+
+
+> unkwords <- ngram1[n==1, c("ngram") ]
+>   unkwords <- data.frame(unkwords[ , replacement:="unk"]) #DataCombine
+>   corpusold <- data.frame(corpus)
+> system.time({
++   unkcorpus <- DataCombine::FindReplace( data=corpusold, Var="text", replaceData=unkwords,
++                             from="ngram", to="replacement", exact=FALSE)
++   })
+    user   system  elapsed 
+44982.18    29.08 45210.42 
+
+> system.time({
++   unkcorpusstringi <- stri_replace_all_fixed(str=corpus$text, pattern=unkwords$ngram, replacement=unkwords$replacement,vectorize_all=FALSE )
++   })
+   user  system elapsed 
+6994.91    0.04 7012.03 
+
+# data.table display in Rstudio environment pane
+A data.table object in the environment panel will not update its preview after new variables are added using the := method. However str(dt) shows the correct details, and assigning dt to a new variable results in the correct preview in the Environment panel. ??maybe because update by reference?? Rstudio doesn't catch this.
+
+# data.table adding multiple columns
+Adding multiple columns at once with DT
+NEWCOLS <- c("w1", "w2", "w3", "w4", "w5")
+
+x2[, c("w1", "w2") := NULL ]         #remove columns. x3 <- x2 by reference NOT copy.
+x3[ , w1 := str_split(ngram, " ")[[1]][1] ]  #add cols w1 w2 works ok, don't need WITH
+x3[ , w2 := str_split(ngram, " ")[[1]][2] ] 
+# OK x3[ , c("w1", "w2") := list(ngram, nchar(ngram)) ]  #add cols w1 w2 works ok, don't need WITH
+
+# Object sizes after removing ngram strings
+> object.size(ngram2)
+230714712 bytes
+> ngram2[, ngram := NULL]
+> object.size(ngram2)
+92735216 bytes
+> str(ngram2)
