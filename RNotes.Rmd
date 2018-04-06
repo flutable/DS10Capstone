@@ -174,3 +174,7 @@ object.size(ngram5) before
   # Replace all words in all grams with an integer
   #Get a list of w* column names from ng, except w1, as that's our index.
   #  #This will subset the DT and return just the cols: ngram3[, grep("w[2-5]?", names(ngram3)), with=FALSE]
+  
+  # Data.table indexes
+   setkey(ngram2, w1, w2, i1, i2)
+   can't then ngram2[.(int, int)] #...because the first two indexes are characters.

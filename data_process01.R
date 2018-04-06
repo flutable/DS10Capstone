@@ -411,19 +411,38 @@ if (!exists("ngram5")) {
   ngram5 <- fread(ngram5File, sep=",", header=TRUE)
 }
 
-# trivial amount of time
+# Setup with text ngrams
   # setDT(ngram1); setkey(ngram1, w1)
   # setDT(ngram2); setkey(ngram2, w2, w1)
   # setDT(ngram3); setkey(ngram3, w3, w2, w1)
   # setDT(ngram4); setkey(ngram4, w4, w3, w2, w1)
   # setDT(ngram5); setkey(ngram5, w5, w4, w3, w2, w1)
-  setDT(ngram1); setkey(ngram1, w1)
-  setDT(ngram2); setkey(ngram2, w1, w2)
-  setDT(ngram3); setkey(ngram3, w1, w2, w3)
-  setDT(ngram4); setkey(ngram4, w1, w2, w3, w4)
-  setDT(ngram5); setkey(ngram5, w1, w2, w3, w4, w5)
-  
-  setkey(ngram1,w1,index)
+  #setup with integer and text ngrams
+  ngram1 <- fread(ngram1File, sep=",", header=TRUE)
+  ngram2 <- fread(ngram2File, sep=",", header=TRUE) #34s to read
+  ngram3 <- fread(ngram3File, sep=",", header=TRUE) #2 mins to read
+  ngram4 <- fread(ngram4File, sep=",", header=TRUE)
+  ngram5 <- fread(ngram5File, sep=",", header=TRUE)
+  setDT(ngram1);
+  setDT(ngram2); 
+  setDT(ngram3);
+  setDT(ngram4); 
+  setDT(ngram5); 
+  ngram1[, i1 := 1:nrow(ngram1)]
+  setkey(ngram1, w1)
+  setkey(ngram2, w1, w2)
+  setkey(ngram3, w1, w2, w3)
+  setkey(ngram4, w1, w2, w3, w4)
+  setkey(ngram5, w1, w2, w3, w4, w5)
+  MapWords(ngram2)
+  MapWords(ngram3)
+  MapWords(ngram4)
+  MapWords(ngram5)
+  setkey(ngram1, w1, i1)
+  setkey(ngram2, w1, w2, i1, i2)
+  setkey(ngram3, w1, w2, w3, i1, i2, i3)
+  setkey(ngram4, w1, w2, w3, w4, i1, i2, i3, i4)
+  setkey(ngram5, w1, w2, w3, w4, w5, i1, i2, i3, i4, i5)
   
   perplexity <- function(ng){
     # Collins method
@@ -458,24 +477,37 @@ MapWords <- function(ng)  {
   # Pre-prepare ngram 1: ngram1[, index := 1:nrow(ngram1)] #by reference
   ngcols <- grep("w[1-5]?", names(ng)) # returns an integervec with valid cols
   #Do this column by column
-  
-  for (word_column in 1:length(ngcols) ) {
-    colname <- paste0("w",word_column)
-    #col <- ng[, ngcols[word_column], with=FALSE] # extract the col, it keeps its name
-    col <- ng[, colname, with=FALSE]
-    names(col) <- "w"
-    col$w <- ngram1[.(col$w)]$index    #replace word text with its index
-    names(col) <- colname
-    ng[, (colname) := col$w]
-
-  }
+  # Integer  0 or both integer and text 1
+  INT = 0
+  BOTH = 1
+  NGTYPE = BOTH
+  if (NGTYPE==BOTH){
+      for (word_column in 1:length(ngcols) ) {
+        colname <- paste0("w",word_column)
+        #col <- ng[, ngcols[word_column], with=FALSE] # extract the col, it keeps its name
+        col <- ng[, colname, with=FALSE]
+        names(col) <- "w"
+        col$w <- ngram1[.(col$w)]$i1    #replace word text with its index
+       # names(col) <- colname
+        intcolname <- paste0("i",word_column)
+        ng[, (intcolname) := col$w]  #integer ngrams only
+      }
+  } else {
+    #only integer
+    # colname <- paste0("i",word_column)
+    # col <- ng[, colname, with=FALSE]
+    # names(col) <- "i"
+    # col$i <- ngram1[.(col$w)]$index    #replace word text with its index
+    # names(col) <- colname
+    # ng[, (colname) := col$w]  #integer ngrams only
+  }  
 }
   
   MapWordToInt <- function(word) {
-    return(ngram1[.(word)]$index)
+    return(ngram1[.(word)]$i1)
   }
   MapIntToWord <- function(i){
-    return(ngram1[index==i]$w1)
+    return(ngram1[i1==i]$w1)
   }
   
   MapStringToInt <- function(st){
@@ -503,7 +535,7 @@ MapWords <- function(ng)  {
 # 1: raised 492 7.51955e-05 -9.495419 118447
 
 
- predMLE <- function(usertext) {
+ predMLEi <- function(usertext) {
    # Predict next word! 
    char0 <- "character(0)"  # string value when ngram not found
     #usertext <- "i" #am a good example of a person who will" #
@@ -516,11 +548,14 @@ MapWords <- function(ng)  {
     if (n2 != char0) { n3 <-  getNgram(usertext, 3) } 
     if (n3 != char0) { n4 <-  getNgram(usertext, 4) }
     if (n4 != char0) { n5 <-  getNgram(usertext, 5) }
+    
     #eg "I think you are a really
-    n2 <- word(n2,1)
-    n3 <- word(n3,1)
-    n4 <- word(n4,1)
-    n5 <- word(n5,1)
+    n1 <- MapWordToInt(n1)
+    n2 <- MapWordToInt(word(n2,1))
+    n3 <- MapWordToInt(word(n3,1))
+    n4 <- MapWordToInt(word(n4,1))
+    n5 <- MapWordToInt(word(n5,1))
+    print(c(MapIntToWord(n1), MapIntToWord(n2), MapIntToWord(n3), MapIntToWord(n4), MapIntToWord(n5)))
     
      timeDtLookup <- Sys.time()
     
@@ -528,93 +563,101 @@ MapWords <- function(ng)  {
     #Have we seen this ngram before? Lookup ngram and extract it.
     #MLE predicted 2gram
     timeDtLookup <- Sys.time()
-    p2_1g   <- ngram2[.(n1) ][order(-pr)][1,]
-    p2_1    <- p2_1g$w2
-    print(paste0("p2_1g: ", p2_1g$ngram, ": ", p2_1))
-    
+    #p2_1g   <- ngram2[i2==n1 ][order(-pr)][1,]
+    p2_1g   <- ngram2[i1==n1 ][order(-pr)][1,]
+    p2_1    <- MapIntToWord(p2_1g$i2)  #predicted word is the next token
+    print(paste0("p2_1g: ", MapIntToString(c(p2_1g$i1, p2_1g$i2)), " Prediction: ", p2_1))
+    #print()
     #MLE predicted 3gram
-    p3_2g   <- p3_2g <- ngram3[.(n2, n1)][order(-pr)][1,]
-    p3_2    <- p3_2g$w3
-    p3_2len <- length(p3_2)
-    print(paste0("p3_2g: ", p3_2g$ngram, ": ", p3_2 ))
+#    p3_2g   <- p3_2g <- ngram3[i3==n2 & i2==n1][order(-pr)][1,]
+    p3_2g   <- ngram3[i1==n2 & i2==n1 ][order(-pr)][1,]
+
+    p3_2    <- MapIntToWord(p3_2g$i3)
+    #p3_2len <- length(p3_2)
+    print(paste0("p3_2g: ", MapIntToString(c(p3_2g$i1, p3_2g$i2, p3_2g$i3)), " Prediction: ", p3_2 ))
     
     #MLE predicted 4gram
-    p4_3g   <- ngram4[.(n3, n2, n1) ][order(-pr)][1,]
-    p4_3    <- p4_3g$w4
-    print(paste0("p4_3g: ", p4_3g$ngram, ": ", p4_3))
+#    p4_3g   <- ngram4[i4==n3 & i3==n2 & i2==n1 ][order(-pr)][1,]
+        p4_3g   <- ngram4[i1==n3 & i2==n2 & i3==n1 ][order(-pr)][1,]
 
-    #MLE predicted 5gram  
-    p5_4g   <- ngram5[.(n4, n3, n2, n1)][order(-pr)][1,]
-    p5_4    <- p5_4g$w5
+    p4_3    <- MapIntToWord(p4_3g$i4)
+    
+    print(paste0("p4_3g: ", MapIntToString(c(p4_3g$i1, p4_3g$i2, p4_3g$i3, p4_3g$i4)), " Prediction: ", p4_3))
+
+    #MLE predicted 5gram 
+    # i and w order is as the user types"at the end of the"
+    # calculated ngrams                  n5  n4 n3  n2  n1    
+    # this function (and predMLE) finds the ngram in word order "the end of the"
+    #so word i1 = the/n4, i2 = end/n3, i3 = of/n2 i4 = the/n1
+    p5_4g   <- ngram5[i1==n4 & i2==n3 & i3==n2 & i4==n1][order(-pr)][1,]
+    p5_4    <- MapIntToWord(p5_4g$i5)
     p5_4len <- length( p5_4g )
-    print(paste0("p5_4g: ", p5_4g$ngram, ": ", p5_4))
+    print(paste0("p5_4g: ", MapIntToString(c(p5_4g$i1,p5_4g$i2,p5_4g$i3,p5_4g$i4,p5_4g$i5)), " Prediction: ", p5_4))
 
     print(paste0("DataTable lookup time: ", difftime(Sys.time(), timeDtLookup, units = 'sec')))   
     # Pure MLE method
-    if       ( !is.na(p5_4g$w5)) {prediction <- p5_4g$w5}  #need to check na, since ngram may not exist.
-     else if ( !is.na(p4_3g$w4)) {prediction <- p4_3g$w4}  #   smoothing will fix this
-     else if ( !is.na(p3_2g$w3)) {prediction <- p3_2g$w3}
-     else if ( !is.na(p2_1g$w2)) {prediction <- p2_1g$w2}
+    if       ( !is.na(p5_4g$i5)) {prediction <- MapIntToWord(p5_4g$i5)}  #need to check na, since ngram may not exist.
+     else if ( !is.na(p4_3g$i4)) {prediction <- MapIntToWord(p4_3g$i4)}  #   smoothing will fix this
+     else if ( !is.na(p3_2g$i3)) {prediction <- MapIntToWord(p3_2g$i3)}
+     else if ( !is.na(p2_1g$i2)) {prediction <- MapIntToWord(p2_1g$i2)}
     
     return( prediction)
     
     }# function pred
  
- predSB <- function(usertext) {
-   # Predict next word using stupid backoff 
+ predMLE <- function(usertext) {
+  # Predict next word!
    char0 <- "character(0)"  # string value when ngram not found
     #usertext <- "i" #am a good example of a person who will" #
     n1 <- char0; n2 <- char0; n3 <- char0; n4 <-char0; n5<-char0
-    countn1 <- 0; countn2 <-0; countn3 <- 0; countn4 <-0; countn5 <- 0
-    # l <- list( p2, p3, p4,p5, countn1, countn2, countn3, countn4, countn5, S)
-    # rm(l)
-    
+    prediction <-""
+
     #Look for ngrams from final word backwards (ie get last unigram, last bigram, last trigram etc)
-    n1 <-  getNgram(usertext, 1)  
+    n1 <-  getNgram(usertext, 1)
     if (n1 != char0) { n2 <-  getNgram(usertext, 2) }  # proceed only if an ngram is found in what the user types
-    if (n2 != char0) { n3 <-  getNgram(usertext, 3) } 
+    if (n2 != char0) { n3 <-  getNgram(usertext, 3) }
     if (n3 != char0) { n4 <-  getNgram(usertext, 4) }
     if (n4 != char0) { n5 <-  getNgram(usertext, 5) }
+    #eg "I think you are a really
+    n2 <- word(n2,1)
+    n3 <- word(n3,1)
+    n4 <- word(n4,1)
+    n5 <- word(n5,1)
+    print(c(n1, n2, n3, n4, n5))
 
-    #Stupid backoff method ----
-    # Take DT, subset rows using i, then calculate j, grouped by by.
-    # Score = count(ngram order X)/count(ngram order X-1)
-    system.time({
-    if (n5 != char0) {  
-      p5       <- ngram5[like(ngram, paste0(SPACE, n4))]
-      countn5  <- nrow(p5)
-    }
-    if (n4 != char0) { 
-      p4      <- ngram4[like(ngram, paste0(SPACE, n3))]  
-      countn4 <- nrow(p4) 
-    }
-    if (n3 != char0) {  
-      p3       <- ngram3[like(ngram, paste0(SPACE, n2))] 
-      countn3  <- nrow(p3)
-    }
-    if (n2 != char0) {  
-      p2      <-  ngram2[like(ngram, paste0(SPACE, n1))] 
-      countn2 <- nrow(p2)
-    }
-    if (n1 != char0) {
-      
-      countn1  <- ngram1[ngram==n1]$n/nrow(ngram1) 
-    }
-    }) #system.time
-    S <- 0
-    if  (countn5 > 0) {
-       S <- countn5/countn4 
-       prediction <- GetNgramlastword(p5$ngram)
-    } else if (countn4 > 0) {
-      S <- 0.4 * countn4/countn3 
-      prediction <- GetNgramlastword(p5$ngram)
-    } else if (countn3 > 0) {
-      S <- 0.4 * countn3/countn2
-      prediction <- GetNgramlastword(p5$ngram)
-    } else if (countn2 > 0) { S <- 0.4 * countn2/countn1 
-    prediction <- GetNgramlastword(p5$ngram)
-    } else {S <- 0.4 * countn1}
-    return(prediction)
+     timeDtLookup <- Sys.time()
 
-    }# function predSB
+    #Data.table lookups ----
+    #Have we seen this ngram before? Lookup ngram and extract it.
+    #MLE predicted 2gram
+    timeDtLookup <- Sys.time()
+    p2_1g   <- ngram2[.(n1) ][order(-pr)][1,]
+    p2_1    <- p2_1g$w2
+    print(paste0("p2_1g: ", paste0(c(p2_1g$w1, p2_1g$w2), collapse= " ")," Prediction: ", p2_1))
 
+    #MLE predicted 3gram
+    p3_2g   <- ngram3[.(n2, n1)][order(-pr)][1,]
+    p3_2    <- p3_2g$w3
+    p3_2len <- length(p3_2)
+    print(paste0("p3_2g: ", paste0(c(p3_2g$w1, p3_2g$w2, p3_2g$w3), collapse=" "), " Prediction: ", p3_2 ))
+
+    #MLE predicted 4gram
+    p4_3g   <- ngram4[.(n3, n2, n1) ][order(-pr)][1,]
+    p4_3    <- p4_3g$w4
+    print(paste0("p4_3g: ", paste0(c(p4_3g$w1,p4_3g$w2,p4_3g$w3,p4_3g$w4), collapse= " "), " Prediction: ", p4_3))
+
+    #MLE predicted 5gram
+    p5_4g   <- ngram5[.(n4, n3, n2, n1)][order(-pr)][1,]
+    p5_4    <- p5_4g$w5
+    p5_4len <- length( p5_4g )
+    print(paste0("p5_4g: ", paste0(c(p5_4g$w1,p5_4g$w2,p5_4g$w3,p5_4g$w4,p5_4g$w5),collapse=" "), " Prediction: ", p5_4))
+
+    print(paste0("DataTable lookup time: ", difftime(Sys.time(), timeDtLookup, units = 'sec')))
+    # Pure MLE method
+    if       ( !is.na(p5_4g$w5)) {prediction <- p5_4g$w5}  #need to check na, since ngram may not exist.
+     else if ( !is.na(p4_3g$w4)) {prediction <- p4_3g$w4}  #   smoothing will fix this
+     else if ( !is.na(p3_2g$w3)) {prediction <- p3_2g$w3}
+     else if ( !is.na(p2_1g$w2)) {prediction <- p2_1g$w2}
+
+    return( prediction)
+}
