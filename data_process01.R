@@ -67,27 +67,8 @@ if (DATASIZE == SMALL) {
   ngram4File <- paste0(cleandataLoc, "ngram4.ng")
   ngram5File <- paste0(cleandataLoc, "ngram5.ng")
 }
-  # ngram1File <- paste0(cleandataLoc, "ngram1int.ng") 
-  # ngram2File <- paste0(cleandataLoc, "ngram2int.ng")
-  # ngram3File <- paste0(cleandataLoc, "ngram3int.ng")
-  # ngram4File <- paste0(cleandataLoc, "ngram4int.ng")
-  # ngram5File <- paste0(cleandataLoc, "ngram5int.ng")
 
-# Helper functions
-downloadFile <- function( URL, dataFile ) {
-  if (!file.exists(dataFile)) {
-    download.file(URL, destfile=dataFile)
-  }
-}
-
-readData <- function( filename, lines) {
-  # f <- file(filename)
-  #datalines <- readLines(f, n=lines)  #was readLines
-  #datalines <- read_file(f)
-  datalines <- read_lines(filename, n_max=lines)
-  # on.exit(close(f))                           #close connection if read fail
-  return(datalines)
-}
+source(utility.R)
 
 
 # Download raw data
@@ -158,36 +139,7 @@ if (PREPROCESSING) {
       newsdf   <- data_frame(text=newsData)
       newsdf   <- sqldf("select text from newsdf where length(text) > 1") 
     }  
-    #Quiz 1 ----
-    # fsize = file.size(blogFile)
-    # print(paste0("blogs file size: ",fsize))
-    # 
-    # #1.2
-    # zTwitLen <- length(twitData)
-    # print(paste0("en_US.twitter.txt has ",zTwitLen, " lines of text" ))
-    # 
-    # #1.3
-    # maxLLtwit <- max(str_length(twitData))
-    # maxLLblog <- max(str_length(blogData))
-    # maxLLnews <- max(str_length(newsData))
-    # print(paste0("Max twitter line length: ", maxLLtwit))
-    # print(paste0("Max blog    line length: ", maxLLblog))
-    # print(paste0("Max news    line length: ", maxLLnews))
-    # 
-    # #1.4
-    # nlineslove <- sum(str_count(twitData, "love")) 
-    # nlineshate <- sum(str_count(twitData, "hate")) 
-    # print(paste0("Love to hate ratio: ", nlineslove/nlineshate))
-    # 
-    # #1.5
-    # #one tweet mentions "biostats". what is the full tweet?
-    # str_subset(twitData,"biostats")
-    # #[1] "i know how you feel.. i have biostats on tuesday and i have yet to study =/"
-    # 
-    # # 1.6
-    # # find how many tweets contain "A computer once beat me at chess, but it was no match for me at kickboxing"
-    # sum(str_count(twitData, "A computer once beat me at chess, but it was no match for me at kickboxing"))
-    
+      
     
     # Merge all data to create complete corpus ----
     L <- list(twitdf, blogdf, newsdf)
@@ -357,42 +309,6 @@ if (PREPROCESSING) {
  
 } #end PREPROCESSING
 
-  # Utility functions -----
-  ## getNgram, SanitiseInput
-  getNgram <- function(userinput, nglength){
-    #get the most recent nglength-gram from user input (from final word backwards)
-    # eg "at the end of the"
-    #   1: "the"
-    #   2: "of the"
-    #   3: "end of the"
-    #   4: "the end of the"
-    #   5: "at the end of the
-    ut <- as.data.table(data_frame(txt = userinput));
-    ng <- ut %>% unnest_tokens(ngram, txt, token="ngrams", n=nglength)
-    return (as.character(ng[.N]))   #.N is a data table variable holding the number of observations.
-    #We want to display the most recent 1/2/3/4/5gram, hence .N holds
-           #the index of the most recent -gram.
-  } #getNgram
-
-    SanitiseInput <- function(inputtext) {
-    #remove all non-predictable characters from input
-    return(gsub("[[:digit:]]|[[:punct:]]", "", x=inputtext, perl=FALSE))
-    }
-    
-  GetNgramlastword <- function(ngram, n) {
-    #last word in split string is no.of tokens in ngram,hence "n"
-    #NOT vectorised
-    ifelse(length(ngram) > 0, result <- str_split(ngram, boundary("word"))[[1]][n], 
-                              result <- "NoNgram")
-    return(result)
-  }
-  GetNgramfirstwords <- function(ng, n){
-     #Specify the ngram, and the order of the ngram eg "of the", 2  yields "of"; "of the fish",3 yields "of the"
-    #NOT vectorised
-    ifelse(length(ng) > 0, result <- glue::collapse(str_split(ng, boundary("word"))[[1]][1:n-1], sep=" "), 
-                              result <- "NoNgram")
-    return(as.character(result))
-  }
 
  # Testing starts here. Make sure PREPROCESSING is 0. Faster to read the ngrams than recreate them.
 if (!exists("ngram1")) {
@@ -417,6 +333,18 @@ if (!exists("ngram5")) {
   # setDT(ngram3); setkey(ngram3, w3, w2, w1)
   # setDT(ngram4); setkey(ngram4, w4, w3, w2, w1)
   # setDT(ngram5); setkey(ngram5, w5, w4, w3, w2, w1)
+  ngram1File <- paste0(cleandataLoc, "ngram1both.ng")
+  ngram2File <- paste0(cleandataLoc, "ngram2both.ng")
+  ngram3File <- paste0(cleandataLoc, "ngram3both.ng")
+  ngram4File <- paste0(cleandataLoc, "ngram4both.ng")
+  ngram5File <- paste0(cleandataLoc, "ngram5both.ng")
+  
+    fwrite(x=ngram1, file=ngram1File)
+  fwrite(x=ngram2, file=ngram2File)
+  fwrite(x=ngram3, file=ngram3File)
+  fwrite(x=ngram4, file=ngram4File)
+  fwrite(x=ngram5, file=ngram5File)
+ 
   #setup with integer and text ngrams
   ngram1 <- fread(ngram1File, sep=",", header=TRUE)
   ngram2 <- fread(ngram2File, sep=",", header=TRUE) #34s to read
@@ -428,26 +356,31 @@ if (!exists("ngram5")) {
   setDT(ngram3);
   setDT(ngram4); 
   setDT(ngram5); 
-  ngram1[, i1 := 1:nrow(ngram1)]
+  #ngram1[, i1 := 1:nrow(ngram1)]
   setkey(ngram1, w1)
   setkey(ngram2, w1, w2)
   setkey(ngram3, w1, w2, w3)
   setkey(ngram4, w1, w2, w3, w4)
   setkey(ngram5, w1, w2, w3, w4, w5)
+  
   MapWords(ngram2)
   MapWords(ngram3)
   MapWords(ngram4)
   MapWords(ngram5)
+  
   setkey(ngram1, w1, i1)
   setkey(ngram2, w1, w2, i1, i2)
   setkey(ngram3, w1, w2, w3, i1, i2, i3)
   setkey(ngram4, w1, w2, w3, w4, i1, i2, i3, i4)
   setkey(ngram5, w1, w2, w3, w4, w5, i1, i2, i3, i4, i5)
-  
-  perplexity <- function(ng){
-    # Collins method
-    return(2 ^ (-sum(ng$lpr)/nrow(ng)))
-  }
+  #just key on integers
+  setkey(ngram1, i1)
+  setkey(ngram2, i1, i2)
+  setkey(ngram3, i1, i2, i3)
+  setkey(ngram4, i1, i2, i3, i4)
+  setkey(ngram5, i1, i2, i3, i4, i5)
+ 
+
 # perplexity measures ----
   #for small training set
 # > perplexity(ngram1)
@@ -473,50 +406,7 @@ if (!exists("ngram5")) {
 # [1] 0.9940812
 #     ngram5 <- fread(ngram5File, sep=",", header=TRUE)
   
-MapWords <- function(ng)  {
-  # Pre-prepare ngram 1: ngram1[, index := 1:nrow(ngram1)] #by reference
-  ngcols <- grep("w[1-5]?", names(ng)) # returns an integervec with valid cols
-  #Do this column by column
-  # Integer  0 or both integer and text 1
-  INT = 0
-  BOTH = 1
-  NGTYPE = BOTH
-  if (NGTYPE==BOTH){
-      for (word_column in 1:length(ngcols) ) {
-        colname <- paste0("w",word_column)
-        #col <- ng[, ngcols[word_column], with=FALSE] # extract the col, it keeps its name
-        col <- ng[, colname, with=FALSE]
-        names(col) <- "w"
-        col$w <- ngram1[.(col$w)]$i1    #replace word text with its index
-       # names(col) <- colname
-        intcolname <- paste0("i",word_column)
-        ng[, (intcolname) := col$w]  #integer ngrams only
-      }
-  } else {
-    #only integer
-    # colname <- paste0("i",word_column)
-    # col <- ng[, colname, with=FALSE]
-    # names(col) <- "i"
-    # col$i <- ngram1[.(col$w)]$index    #replace word text with its index
-    # names(col) <- colname
-    # ng[, (colname) := col$w]  #integer ngrams only
-  }  
-}
-  
-  MapWordToInt <- function(word) {
-    return(ngram1[.(word)]$i1)
-  }
-  MapIntToWord <- function(i){
-    return(ngram1[i1==i]$w1)
-  }
-  
-  MapStringToInt <- function(st){
-    return(as.integer(sapply(str_split(tolower(st),boundary("word")), MapWordToInt)))
-  }
-  
-  MapIntToString <- function(intvec) {
-    return(paste0(sapply(intvec, MapIntToWord), collapse=" "))
-  }
+ 
 
 #  ngram1[index==c1[1]$w]
 #     w1   n           pr       lpr  index
