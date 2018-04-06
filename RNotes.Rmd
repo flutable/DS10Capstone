@@ -148,3 +148,29 @@ x3[ , w2 := str_split(ngram, " ")[[1]][2] ]
 # Shiny
 Errors:
 object of type 'closure' is not subsettable: usually means you've referenced an object as name rather than name()
+
+# Corpus ngram sizes n, pr, lpr, individual words
+#full corpus
+object.size(ngram1)
+14300344 bytes
+object.size(ngram2)
+101058576 bytes
+ 66584376 after
+object.size(ngram3)
+236161984 bytes
+152305344 bytes after
+object.size(ngram4)
+327658688 bytes
+194668424 bytes after
+object.size(ngram5) before
+405145640 bytes
+> object.size(ngram5) after
+231798560 bytes
+
+  #object.size(ngram1)
+  #14300344 bytes
+  #object.size(ngram1) after adding index
+  #14973544 bytes     #673200 bytes larger
+  # Replace all words in all grams with an integer
+  #Get a list of w* column names from ng, except w1, as that's our index.
+  #  #This will subset the DT and return just the cols: ngram3[, grep("w[2-5]?", names(ngram3)), with=FALSE]

@@ -19,6 +19,9 @@ library(stringi)
 # 3. print memory usage at different points
 # 4. garbage collect gc() at certain points
 
+#Clear environment
+rm(list=ls())
+
 # testing variables
 PREPROCESSING = 0         #1 means pre-process, 0 means testing
                           #  Should only have to pre-process once to reproduce all files
@@ -64,7 +67,11 @@ if (DATASIZE == SMALL) {
   ngram4File <- paste0(cleandataLoc, "ngram4.ng")
   ngram5File <- paste0(cleandataLoc, "ngram5.ng")
 }
-
+  # ngram1File <- paste0(cleandataLoc, "ngram1int.ng") 
+  # ngram2File <- paste0(cleandataLoc, "ngram2int.ng")
+  # ngram3File <- paste0(cleandataLoc, "ngram3int.ng")
+  # ngram4File <- paste0(cleandataLoc, "ngram4int.ng")
+  # ngram5File <- paste0(cleandataLoc, "ngram5int.ng")
 
 # Helper functions
 downloadFile <- function( URL, dataFile ) {
@@ -416,6 +423,8 @@ if (!exists("ngram5")) {
   setDT(ngram4); setkey(ngram4, w1, w2, w3, w4)
   setDT(ngram5); setkey(ngram5, w1, w2, w3, w4, w5)
   
+  setkey(ngram1,w1,index)
+  
   perplexity <- function(ng){
     # Collins method
     return(2 ^ (-sum(ng$lpr)/nrow(ng)))
@@ -443,7 +452,56 @@ if (!exists("ngram5")) {
 # [1] 0.977296
 # > perplexity(ngram5)
 # [1] 0.9940812
-   
+#     ngram5 <- fread(ngram5File, sep=",", header=TRUE)
+  
+MapWords <- function(ng)  {
+  # Pre-prepare ngram 1: ngram1[, index := 1:nrow(ngram1)] #by reference
+  ngcols <- grep("w[1-5]?", names(ng)) # returns an integervec with valid cols
+  #Do this column by column
+  
+  for (word_column in 1:length(ngcols) ) {
+    colname <- paste0("w",word_column)
+    #col <- ng[, ngcols[word_column], with=FALSE] # extract the col, it keeps its name
+    col <- ng[, colname, with=FALSE]
+    names(col) <- "w"
+    col$w <- ngram1[.(col$w)]$index    #replace word text with its index
+    names(col) <- colname
+    ng[, (colname) := col$w]
+
+  }
+}
+  
+  MapWordToInt <- function(word) {
+    return(ngram1[.(word)]$index)
+  }
+  MapIntToWord <- function(i){
+    return(ngram1[index==i]$w1)
+  }
+  
+  MapStringToInt <- function(st){
+    return(as.integer(sapply(str_split(tolower(st),boundary("word")), MapWordToInt)))
+  }
+  
+  MapIntToString <- function(intvec) {
+    return(paste0(sapply(intvec, MapIntToWord), collapse=" "))
+  }
+
+#  ngram1[index==c1[1]$w]
+#     w1   n           pr       lpr  index
+# 1: nov 230 3.515237e-05 -10.25582 101734
+# > ngram1[index==c1[2]$w]
+#              w1   n           pr      lpr index
+# 1: conversation 495 7.565401e-05 -9.48934 30090
+# > ngram1[index==c1[3]$w]
+#     w1   n           pr       lpr index
+# 1: dec 260 3.973746e-05 -10.13322 35262
+# > ngram1[index==c1[4]$w]
+#         w1   n           pr       lpr  index
+# 1: obvious 313 4.783779e-05 -9.947695 102789
+# > ngram1[index==c1[5]$w]
+#        w1   n          pr       lpr  index
+# 1: raised 492 7.51955e-05 -9.495419 118447
+
 
  predMLE <- function(usertext) {
    # Predict next word! 
