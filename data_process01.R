@@ -6,6 +6,7 @@ library(quanteda)
 library(sqldf)
 library(glue) #collapse()
 library(stringi)
+library(doParallel)
 
 # 
 # <!-- Does the link lead to an HTML page describing the exploratory analysis of the training data set? -->
@@ -68,31 +69,29 @@ if (DATASIZE == SMALL) {
   ngram5File <- paste0(cleandataLoc, "ngram5.ng")
 }
 
-source(utility.R)
-
-
-# Download raw data
-#dataf <- paste0("./", rawdataLoc, "/", rawdataFile)
-#downloadFile(rawdataURL, dataf)
+source("utility.R")
 
 
 # Get some profanity ----
 if (PREPROCESSING) {
   preproctime = Sys.time()
-  downloadFile( profanityURL, profanityJSON)
-  profanity <- fromJSON(profanityJSON)          # It's in JSON format, so strip out all the tags
-  # remove asterisk from profanity (we are not yet doing stemming. \ escapes, \* resolves to asterisk)
-  profanity <- gsub("\\*", "", profanity, ignore.case=TRUE, perl=TRUE)
-  profanity <- unique(profanity)                # remove duplicates
-  
-  # Save text-format profanity for later
-  write(profanity, file=profanityFile)
-  profdf <- data_frame(profanity)
-  } else {
+  # downloadFile( profanityURL, profanityJSON)
+  # profanity <- fromJSON(profanityJSON)          # It's in JSON format, so strip out all the tags
+  # # remove asterisk from profanity (we are not yet doing stemming. \ escapes, \* resolves to asterisk)
+  # profanity <- gsub("\\*", "", profanity, ignore.case=TRUE, perl=TRUE)
+  # profanity <- unique(profanity)                # remove duplicates
+  # 
+  # # Save text-format profanity for later
+  # write(profanity, file=profanityFile)
+  # profdf <- data_frame(profanity)
+  # } else {
   #Get existing data
   if (!exists("profdf")) {
     profdf <- fread(profanityFile, sep="\n", header=FALSE)
-  }} #profanity preprocessing
+    names(profdf) <- "term"
+  }
+  profanitypattern <- paste(profdf$term, collapse="|")
+  } #profanity preprocessing
 
  # IF PREPROCESSING ----
 if (PREPROCESSING) {
@@ -113,6 +112,12 @@ if (PREPROCESSING) {
       twitData <- gsub("^\ +",        "", x=twitData, perl=FALSE)  # remove spaces at start of line
       twitdf   <- data_frame(text=twitData)   #must have text= parameter, else unnest_tokens or tokenize doesn't work
       twitdf   <- sqldf("select text from twitdf where length(text) > 1")   #only get valid lines, else fread won't work :/
+      twitData <- as.data.table(twitData)
+      names(twitData) <- "text"
+      setindex(twitData,text)
+      profanityIndex <- grep(profanitypattern, twitData$text)
+      # select non-profane lines
+      twitData <- twitData[!profanityIndex, ]  #Data table, so in-place
     }
     
     #read blog text
@@ -139,14 +144,21 @@ if (PREPROCESSING) {
       newsdf   <- data_frame(text=newsData)
       newsdf   <- sqldf("select text from newsdf where length(text) > 1") 
     }  
-      
+  
     
     # Merge all data to create complete corpus ----
-    L <- list(twitdf, blogdf, newsdf)
+    L <- list(twitdf, blogdf, newsdf, blogData, newsData, twitData)
     #rm(twitdf); rm(blogdf); rm(newsdf)
     corpus <- rbindlist(L)
-    rm(L)
+    rm(twitdf); rm(blogdf); rm(newsdf); rm(twitData); rm(newsData); rm(twitData)
     gc()
+    #remove profanity
+    corpus <- as.data.table(corpus)
+    names(corpus) <- "text"
+    setindex(corpus,text)
+    profanityIndex <- grep(profanitypattern, corpus$text)
+    # select non-profane lines
+    corpus <- corpus[!profanityIndex, ]  #Data table, so in-place
     # Save master corpus
     fwrite(x=corpus, file=paste0(cleandataLoc,"corpusNewsBlogTwit.txt"))
     
@@ -173,7 +185,8 @@ if (PREPROCESSING) {
     fwrite(x=smalltestcorpus,     file=paste0(cleandataLoc, "smalltestcorpus.txt"))
     
     # Clean up
-    rm(corpus)
+    rm(corpus); rm(smallcorpus); rm(smalltestcorpus); rm(smalltrainingcorpus)
+    rm(corpustest); rm(corpustraining)
     gc()
     print(paste0("Preprocessing time: ", difftime(Sys.time(), preproctime, units = 'sec')))  
   } #DATASIZE=LARGE
@@ -186,6 +199,8 @@ if (PREPROCESSING) {
   } else {
     corpus <- corpustraining
   }
+  ## UNK TESTING
+    corpus <- fread(paste0(cleandataLoc , "corpustraining.txt"), sep=",", header=TRUE)
   
   findNgramtime <- Sys.time()
   
@@ -193,12 +208,14 @@ if (PREPROCESSING) {
       unnest_tokens(ngram, text, token="ngrams", n= 1) %>%
       count(ngram, sort=TRUE) 
   print(paste0("Find ngram1: ", difftime(Sys.time(), findNgramtime, units = 'sec'))) #292 sec 
- 
+  ngram1 <- as.data.table(ngram1) 
   # Handling out-of-vocabulary items
   # Replace all tokens with count == 1 by token unk, then recompute all ngrams.
   #  1. Find n==1 tokens
   unkwords <- ngram1[n==1, c("ngram") ]
+  #unkwords <- ngram1[n==1, ]
 
+   fwrite(x=ngram1, file=ngram1File)
   #  2. modify unkwords so that only tokens with a space on either side are selected
   unkwords$ngram <- paste0(SPACE, unkwords$ngram, SPACE)  
   
@@ -206,12 +223,30 @@ if (PREPROCESSING) {
   tempreplacement <- paste0(SPACE, "unk", SPACE)
   unkwords <- data.frame(unkwords[ , replacement:= tempreplacement])
   
+  
+  # parallel processing of unknown words. Divide corpus into partitions
+  partitions = detectCores() - 1 # leave 1 for system.
+  #partition the corpus into 
+  partitionSize = round(nrow(corpus)/partitions)
+  
+  cl <- makeCluster(partitions)
+  registerDoParallel(cl)
   # 4.Now replace each occurrence of all elements of unkwords in original corpus  #6 ytimes slower than stri_replace_all_fixed
   #   Approximately 25 items per second using 1 core on an i6700. 
   #   Total lines=4,269,678 => 47 hours on 1 core, approx 8 hours on 7 cores.
-  corpus <- stri_replace_all_fixed(str=corpus$text, pattern=unkwords$ngram, replacement=unkwords$replacement,
-                                   vectorize_all=FALSE )
   
+  RemUnkWords <- function(partitionNum, corp) {
+    print(paste0("Partition: ", partitionNum))
+    partition_start  <- partitionNum * partitionSize-(partitionSize) + 1
+    partition_finish <- partitionNum * partitionSize 
+    corpPart <- corpus[partition_start:partition_finish, ]
+    corpPart <- stringi::stri_replace_all_fixed(str=corpPart$text, pattern=unkwords$ngram, replacement=unkwords$replacement,
+                                     vectorize_all=FALSE )
+  }
+  unktime <- Sys.time()
+  x <- foreach(i = 1:partitions) %dopar% RemUnkWords(i, corpus)
+  print(paste0("Unkwords: ", difftime(Sys.time(), unktime, units = 'sec'))) #292 sec
+  stopCluster(cl)
   
  # Ngrams2-5 will have UNK already incorporated  
   # Recompute ngram1 with UNK so we can compute OOV probabilities. This removes unigrams with count ==1, as they're all UNK.
