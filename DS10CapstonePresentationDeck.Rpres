@@ -1,25 +1,33 @@
-Johns Hopkins Data Science  Capstone Project
+<style>
+
+.small-code pre code {
+  font-size: 0.5em;
+}
+</style>
+
+Data Science Capstone Project
 ========================================================
 author: Nick Murray 
 date: 19 April 2018
-autosize: true
+autosize: false
 font-import: https://fonts.googleapis.com/css?family=Open+Sans
 font-family: 'Open Sans', sans-serif;
 transition: rotate
+class: small-code
 
-The problem
+In some environments and situations, it is difficult to enter text using a keyboard:
 
-Predictive text enables a likely "next word" to be entered in environments where typing text is difficult.
-
-- IDEs, where you need to pick a variable or API name
-- text editors, where frequently-typed items entry can be sped up
+- IDEs, where you need to pick a variable or API name from a long list
 - Smartphones, where text entry is difficult due to size or layout of keyboards
 
-This app shows a partial solution to the word prediction problem.
-
+This app shows a partial solution to the word prediction problem: predicting the next word from a pre-defined and pre-processed corpus.
 
 Data processing outline
 ========================================================
+class: small-code
+title:false
+
+Data processing outline
 
 - Prediction uses English twitter/news/blog corpora from:
 
@@ -30,34 +38,34 @@ Data processing outline
  -- change character encoding from UTF-8 to ASCII
  -- remove digits, puncutation, control characters, spaces at start of line, blanks, common English profanity
  
-- Merge data, create full (4M lines) and small (400klines) training (70%) and test (30%) sets
-- Create 1-4 ngrams using tidytext (5grams too large for shinyapps.io)
-- use data.table as a data store
+- After merging each corpus, create full (4M lines) and small (400klines) training (70%) and test (30%) sets
+- Create 1-4 ngrams using R **TidyText** package 
+- Use data.table (DT) as a data store
 - Split ngrams into individual words & index on each word
 - No special edge-cases considered
 
 Design Decisions
 ========================================================
+class: small-code
+title:false
 
-- Uses R package **data.table** (DT) used to store processed ngrams.
-- DT indexed initially on entire ngram, search was slow (2 seconds per lookup!), then ngram broken into, and indexed on, individual tokens
-- Search now approximately 0.02 seconds per lookup
-- 1-5gram database size approx 800MB, too large for ShinyApps. 
+Design Decisions
 
-  - Tried to keep 1gram text, add index variable, mapped words in 2-5grams to integers
+- Predictions are based on maximum likelihood with Stupid Backoff
+- Ngram broken into, and indexed on, individual tokens - approximately 0.02 seconds per lookup
+- 1-5gram database size approx 800MB, too large for ShinyApps; 1-4gram database fits within a ShinyApps "large" instance (1GB)
+- Tried mapping unigrams to integers and using integers in 2-5 grams: 
   - Approx 50% size reduction in storage 
   - But data.table access via integers approx 50 times slower (0.1 s vs 0.02s)   
-  - Decided to use 1-4 grams, all text as a compromise between accuracy and speed.
-  - Predictions based on maximum likelihood; TidyText package (and related book) shows a method of creating ngrams and sorting in decreasing order of occurrence
 
-- Lessons learned
 
-  - Don't mix *tidyverse*, data frame and *data.table* concepts in processing; do one then the other, else data.table attributes get stripped off
-  - Don't try to remove profanity word by word: iterating over 1000 profane items x 4 million lines even using stri_remove_all_fixed takes a *lot* of time
-  - Different R packages have different design philosophies, some are more suited to smaller data processing tasks
 
 App Design
 ==========================================
+class: small-code
+title:false
+
+App Design
 
 - The app is located at: https://flutable.shinyapps.io/NMDS10Capstone2/
 - Data loading takes 30 seconds or so
@@ -75,11 +83,18 @@ How to use
 
 Performance & Future work
 ========================================================
+class: small-code
+title: false
+
+Performance 
 
 - Measured using benchmark https://github.com/hfoffani/dsci-benchmark
 - Accuracy about 12% using 10% of corpus only.
 
 Future work
-- migrate ngram data.table to integer lookup tables (as previously) & solve the indexing problem
-- re-implement in python as a learning exercise 
+- Migrate ngram data.table to integer lookup tables (as previously) & solve the indexing problem
+- Re-implement in python as a learning exercise 
+- Add the ability to scan additional corpora
+- Better profanity detection
+- Better unknown words handling
 

@@ -22,23 +22,8 @@ library(doParallel)
 
 #Clear environment
 rm(list=ls())
-
-# testing variables
-PREPROCESSING = 0         #1 means pre-process, 0 means testing
-                          #  Should only have to pre-process once to reproduce all files
-                          #  Then switch to PREPROCESSING=0 for testing the algorithm
-
-cLines   = -1             #-1 means read everything in the blog/twitter/news raw files. Only makes sense for DATASIZE=large
-
-TWITTER  = 1              #1 means process this file, 0 means skip
-BLOG     = 1
-NEWS     = 1
-
-SMALL    = 0
-LARGE    = 1
-
-DATASIZE = LARGE   #0 is small data set, 1 is all the data
-SPACE    = " "     #a single space     
+source("constants.R")
+source("utility.R")
 
 # Data locations
 #There are some odd profanities here. 'Australians' is one!
@@ -69,7 +54,7 @@ if (DATASIZE == SMALL) {
   ngram5File <- paste0(cleandataLoc, "ngram5.ng")
 }
 
-source("utility.R")
+
 
 
 # Get some profanity ----
@@ -200,7 +185,9 @@ if (PREPROCESSING) {
     corpus <- corpustraining
   }
   ## UNK TESTING
-    corpus <- fread(paste0(cleandataLoc , "corpustraining.txt"), sep=",", header=TRUE)
+      corpus <- fread(paste0(cleandataLoc , "corpustraining.txt"), sep=",", header=TRUE)
+      corpus <- corpus[1:400, ]
+      ngram1 <- fread(ngram1File, sep=",", header=TRUE)
   
   findNgramtime <- Sys.time()
   
@@ -215,7 +202,7 @@ if (PREPROCESSING) {
   unkwords <- ngram1[n==1, c("ngram") ]
   #unkwords <- ngram1[n==1, ]
 
-   fwrite(x=ngram1, file=ngram1File)
+ #  fwrite(x=ngram1, file=ngram1File)
   #  2. modify unkwords so that only tokens with a space on either side are selected
   unkwords$ngram <- paste0(SPACE, unkwords$ngram, SPACE)  
   
@@ -239,9 +226,10 @@ if (PREPROCESSING) {
     print(paste0("Partition: ", partitionNum))
     partition_start  <- partitionNum * partitionSize-(partitionSize) + 1
     partition_finish <- partitionNum * partitionSize 
-    corpPart <- corpus[partition_start:partition_finish, ]
-    corpPart <- stringi::stri_replace_all_fixed(str=corpPart$text, pattern=unkwords$ngram, replacement=unkwords$replacement,
-                                     vectorize_all=FALSE )
+    print(paste0("partitionStart: ", partition_start, " partitionEnd: ", partition_finish))
+    corpPart <- as.data.frame(corpus[partition_start:partition_finish, ])
+    corpPart <- stringi::stri_replace_all_fixed(str=corpPart$text, pattern=unkwords$ngram, replacement=unkwords$replacement, vectorize_all=FALSE)
+    return(corpPart)
   }
   unktime <- Sys.time()
   x <- foreach(i = 1:partitions) %dopar% RemUnkWords(i, corpus)
@@ -335,6 +323,16 @@ if (PREPROCESSING) {
   ngram4[, ngram := NULL]
   ngram5[, ngram := NULL]
   
+
+  total_tokens = sum(ngram1$n)                             #includes all previous 1-count unigrams replaced with UNK
+
+  ngram1 <- ngram1[, pr  := ngram1[ngram==ngram1$ngram, ]$n/total_tokens] #Use data.table to add (:=) the pr column
+  ngram2 <- ngram2[, pr  := ngram2[ngram==ngram2$ngram, ]$n/ngram1[ngram==GetNgramfirstwords(ngram2$ngram,2)]$n]
+  ngram3 <- ngram3[, pr  := ngram3[ngram==ngram3$ngram, ]$n/ngram2[ngram==GetNgramfirstwords(ngram3$ngram,3),]$n]
+  ngram4 <- ngram4[, pr  := ngram4[ngram==ngram4$ngram, ]$n/ngram3[ngram==GetNgramfirstwords(ngram4$ngram,4),]$n]
+  ngram5 <- ngram5[, pr  := ngram5[ngram==ngram5$ngram, ]$n/ngram4[ngram==GetNgramfirstwords(ngram5$ngram,5),]$n]
+
+  
   #Save files
   fwrite(x=ngram1, file=ngram1File)
   fwrite(x=ngram2, file=ngram2File)
@@ -415,7 +413,13 @@ if (!exists("ngram5")) {
   setkey(ngram4, i1, i2, i3, i4)
   setkey(ngram5, i1, i2, i3, i4, i5)
  
-
+ ngramnsize <- object.size(ngram1) + object.size(ngram2) + object.size(ngram3) + object.size(ngram4) + object.size(ngram5)
+ ngram1[,n:=NULL]
+ ngram2[,n:=NULL]
+ ngram3[,n:=NULL]
+ ngram4[,n:=NULL]
+ ngram5[,n:=NULL]
+ 
 # perplexity measures ----
   #for small training set
 # > perplexity(ngram1)

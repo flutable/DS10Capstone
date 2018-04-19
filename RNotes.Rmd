@@ -6,6 +6,12 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+# Lessons learned
+
+  - Don't mix **tidyverse**, data frame and **data.table** concepts in processing; do one then the other, else data.table attributes get stripped off
+  - Don't try to remove profanity word by word: iterating over 1000 profane items x 4 million lines even using stri_remove_all_fixed takes a **lot** of time
+  - Different R packages have different design philosophies, some are more suited to smaller data processing tasks
+  
 # Selections
 test <- sqldf("select * from t1 where t1.n > 400 limit 1")  
 test <- sqldf("select * from t1 where t1.ngram = 'i' ")
