@@ -1,0 +1,85 @@
+Johns Hopkins Data Science  Capstone Project
+========================================================
+author: Nick Murray 
+date: 19 April 2018
+autosize: true
+font-import: https://fonts.googleapis.com/css?family=Open+Sans
+font-family: 'Open Sans', sans-serif;
+transition: rotate
+
+The problem
+
+Predictive text enables a likely "next word" to be entered in environments where typing text is difficult.
+
+- IDEs, where you need to pick a variable or API name
+- text editors, where frequently-typed items entry can be sped up
+- Smartphones, where text entry is difficult due to size or layout of keyboards
+
+This app shows a partial solution to the word prediction problem.
+
+
+Data processing outline
+========================================================
+
+- Prediction uses English twitter/news/blog corpora from:
+
+	https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip
+
+- For each twitter/news/blog corpus
+
+ -- change character encoding from UTF-8 to ASCII
+ -- remove digits, puncutation, control characters, spaces at start of line, blanks, common English profanity
+ 
+- Merge data, create full (4M lines) and small (400klines) training (70%) and test (30%) sets
+- Create 1-4 ngrams using tidytext (5grams too large for shinyapps.io)
+- use data.table as a data store
+- Split ngrams into individual words & index on each word
+- No special edge-cases considered
+
+Design Decisions
+========================================================
+
+- Uses R package **data.table** (DT) used to store processed ngrams.
+- DT indexed initially on entire ngram, search was slow (2 seconds per lookup!), then ngram broken into, and indexed on, individual tokens
+- Search now approximately 0.02 seconds per lookup
+- 1-5gram database size approx 800MB, too large for ShinyApps. 
+
+  - Tried to keep 1gram text, add index variable, mapped words in 2-5grams to integers
+  - Approx 50% size reduction in storage 
+  - But data.table access via integers approx 50 times slower (0.1 s vs 0.02s)   
+  - Decided to use 1-4 grams, all text as a compromise between accuracy and speed.
+  - Predictions based on maximum likelihood; TidyText package (and related book) shows a method of creating ngrams and sorting in decreasing order of occurrence
+
+- Lessons learned
+
+  - Don't mix *tidyverse*, data frame and *data.table* concepts in processing; do one then the other, else data.table attributes get stripped off
+  - Don't try to remove profanity word by word: iterating over 1000 profane items x 4 million lines even using stri_remove_all_fixed takes a *lot* of time
+  - Different R packages have different design philosophies, some are more suited to smaller data processing tasks
+
+App Design
+==========================================
+
+- The app is located at: https://flutable.shinyapps.io/NMDS10Capstone2/
+- Data loading takes 30 seconds or so
+
+![app layout](app.png)
+
+How to use
+- Enter a phrase into the text box
+- App detects last 1-4 grams user types, predicted word is last word of (n+1)-gram (maximum likelihood)
+- Single column layout.
+- Expose predicted word from each ngram; final prediction is predicted word from highest-order ngram
+- Final upload size approx 86 MB compressed
+
+
+
+Performance & Future work
+========================================================
+
+- Measured using benchmark https://github.com/hfoffani/dsci-benchmark
+- Accuracy about 12% using 10% of corpus only.
+
+Future work
+- migrate ngram data.table to integer lookup tables (as previously) & solve the indexing problem
+- re-implement in python as a learning exercise 
+
