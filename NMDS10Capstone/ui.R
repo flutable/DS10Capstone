@@ -53,17 +53,19 @@ shinyUI(fluidPage(
       textInput("usertext", 
                 "Enter a phrase", 
                 ""),
-             p(style="display:inline","The app displays the last 1-gram to 4-gram you enter."),
-             p(style="display:inline","The predicted word from each ngram length is in",strong("bold.")),
-            br(),
-             p(style="display:inline","The algorithm tries to find the prediction from the longest ngram you have entered: if a 4-gram is found in the database, the prediction is the most-likely word after the 4-gram. If a 4 gram is not found, the prediction is the most-likely word after a 3-gram, etc."),
-            br(),
-             p(style="display:inline",strong("Predicted: "), textOutput("textDisplay"))
+             p(style="display:inline","The app displays the last 1-gram to 3-gram you enter."),
+             p(style="display:inline","The predicted word from each ngram length is in",strong("bold."), " There needs to be at least 3 words entered before the 3-gram displays a prediction."),
+             br(),br(),
+             p(style="display:inline","The algorithm tries to find the prediction from the longest ngram you have entered from a database of 1-grams to 4-grams."),
+             br(), br(),
+          p(style="display:inline"," If you enter a 3-gram and a 4-gram is found in the database, the prediction is the most-likely last word in the 4-gram. If a 4-gram is not found, the prediction is the most-likely word at the end of a 3-gram, etc..This approach is known as 'Stupid Backoff'."),
+            br(), br(),
+             p(style="display:inline",strong("Prediction: "), textOutput("textDisplay"))
       
    )),
 
   fluidRow(
-    br(),
+    #br(),
     h4(" N-gram input (right to left)"),
     column(12,
 
@@ -73,8 +75,8 @@ shinyUI(fluidPage(
            
             p(style="display:inline", "1-gram: ", textOutput("n1"), strong(textOutput("p2_1"))  ),
             p(style="display:inline", "2-gram: ", textOutput("n2"), strong(textOutput("p3_2"))  ),
-            p(style="display:inline", "3-gram: ", textOutput("n3"), strong(textOutput("p4_3"))  ),
-            p(style="display:inline", "4-gram: ", textOutput("n4"), strong(textOutput("p5_4"))  )   #add comma if 
+            p(style="display:inline", "3-gram: ", textOutput("n3"), strong(textOutput("p4_3"))  )
+            #p(style="display:inline", "4-gram: ", textOutput("n4"), strong(textOutput("p5_4"))  )   #add comma if 
 
     ) #col
   ) #fluidRow 
